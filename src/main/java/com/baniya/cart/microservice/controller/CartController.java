@@ -94,11 +94,16 @@ public class CartController {
 
     }
 
-//    @PostMapping("/checkout/{userId}")
-//    public ResponseEntity<String> checkout(@PathVariable("userId"))
-//    {
-//
-//    }
+    @GetMapping ("/checkout/{userId}")
+    public List<Cart> checkout(@PathVariable("userId") String userId)
+    {
+        ProductDTO productDTO = new ProductDTO();
+        List<Cart> userIdList = service.findByUser(userId);
+
+
+        return userIdList;
+
+    }
 
     @DeleteMapping("/delete/{userId}/{productId}")
     public void deleteProduct(@PathVariable("userId") String userId, @PathVariable("productId") String productId)
