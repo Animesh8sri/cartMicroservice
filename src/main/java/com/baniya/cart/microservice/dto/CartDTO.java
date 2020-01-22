@@ -13,8 +13,9 @@ import java.io.Serializable;
 @NoArgsConstructor
 public class CartDTO implements Serializable {
 
-    private String cartId;
-    private String userEmailId;
+
+    private String userId;
     private String productId;
     private String merchantId;
+    private int counter;
 }

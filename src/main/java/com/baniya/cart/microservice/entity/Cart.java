@@ -2,6 +2,7 @@ package com.baniya.cart.microservice.entity;
 
 
 import lombok.*;
+import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.io.Serializable;
@@ -14,10 +15,13 @@ import java.io.Serializable;
 @Document(collection = "Cart")
 public class Cart implements Serializable {
 
-    private String cartId;
-    private String userEmailId;
+
+    @Id
+    private String id;
+    private String userId;
     private String productId;
     private String merchantId;
+    private int counter;
 
     public Cart(){}
 

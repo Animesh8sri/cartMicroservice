@@ -15,9 +15,10 @@ import java.io.Serializable;
 @Document(collection = "OrderHistory")
 public class OrderHistory implements Serializable {
 
+
     private String orderId;
     private String merchantId;
-    private String userEmailId;
+    private String userId;
     private String productName;
     private String timestamp;
     private String quantity;

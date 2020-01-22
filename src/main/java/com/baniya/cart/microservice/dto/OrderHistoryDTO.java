@@ -13,7 +13,7 @@ public class OrderHistoryDTO {
 
     private String orderId;
     private String merchantId;
-    private String userEmailId;
+    private String userId;
     private String productName;
     private String timestamp;
     private String quantity;
