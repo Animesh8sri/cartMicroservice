@@ -81,11 +81,13 @@ public class cartServiceImpl implements CartService {
     @Override
     public void viewStockAndPrice(List<Cart> userIdList, Map<String, ProductDTO> productDTOMap) {
         Map<String,MerchantDTO> stockAndPrice = new HashMap<>();
+        Cart cart=null;
         stockAndPrice = merchantProxy.viewPriceAndStockByProductId(userIdList);
         for(Cart user:userIdList) {
             try {
                 productDTOMap.get(user.getProductId()).setPrice(stockAndPrice.get(user.getProductId() + "_" + user.getMerchantId()).getPrice());
                 productDTOMap.get(user.getProductId()).setStock(stockAndPrice.get(user.getProductId() + "_" + user.getMerchantId()).getStock());
+                productDTOMap.get(user.getProductId()).setCounter(user.getCounter());
                 productDTOMap.get(user.getProductId()).setMerchantId(stockAndPrice.get(user.getProductId() + "_" + user.getMerchantId()).getMerchantDetails().getMerchantId());
 
             } catch (Exception ex) {
