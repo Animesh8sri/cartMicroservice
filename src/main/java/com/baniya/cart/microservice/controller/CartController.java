@@ -2,13 +2,9 @@ package com.baniya.cart.microservice.controller;
 
 
 import com.baniya.cart.microservice.controller.impl.APIProxy;
-import com.baniya.cart.microservice.dto.CartDTO;
-import com.baniya.cart.microservice.dto.OriginalProductDTO;
-import com.baniya.cart.microservice.dto.ProductDTO;
-import com.baniya.cart.microservice.dto.UserDTO;
+import com.baniya.cart.microservice.dto.*;
 import com.baniya.cart.microservice.entity.Cart;
 import com.baniya.cart.microservice.service.CartService;
-import com.baniya.cart.microservice.service.impl.cartServiceImpl;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
@@ -16,7 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import javax.servlet.http.HttpServletRequest;
+import javax.jws.soap.SOAPBinding;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -31,6 +27,7 @@ public class CartController {
     @Autowired
     APIProxy apiProxy;
 
+
     private static List<ProductDTO> checkout = new ArrayList<>();
 
     @PostMapping("/addToCart")
@@ -38,12 +35,10 @@ public class CartController {
     {
         int count;
         Cart cart = new Cart();
-//        HttpHeaders httpHeaders = headers;
         String userIdHeader =  headers.get("Auth").get(0);
+        UserProfile userProfile = apiProxy.getCurrentUser(userIdHeader);
 
-        UserDTO userDTO = (UserDTO) apiProxy.login(userIdHeader);
-
-        cartDTO.setUserId(userDTO.getId());
+        cartDTO.setUserId(userProfile.getId());
 
         BeanUtils.copyProperties(cartDTO,cart);
         String cartId = cartDTO.getUserId() + "_" + cartDTO.getProductId();
@@ -69,7 +64,7 @@ public class CartController {
     public List<ProductDTO> viewProductById(@RequestHeader HttpHeaders headers){
 
         String userIdHeader =  headers.get("Auth").get(0);
-        UserDTO userDTO = (UserDTO) apiProxy.login(userIdHeader);
+        UserProfile userDTO = (UserProfile) apiProxy.getCurrentUser(userIdHeader);
 
         ProductDTO productDTO = new ProductDTO();
         List<Cart> userIdList = service.findByUser(userDTO.getId());
@@ -93,7 +88,7 @@ public class CartController {
     {
         Cart cart = new Cart();
         String userIdHeader =  headers.get("Auth").get(0);
-        UserDTO userDTO = (UserDTO) apiProxy.login(userIdHeader);
+        UserProfile userDTO = (UserProfile) apiProxy.getCurrentUser(userIdHeader);
         cartDTO.setUserId(userDTO.getId());
         BeanUtils.copyProperties(cartDTO,cart);
         String cartId = cartDTO.getUserId() + "_" + cartDTO.getProductId();
@@ -112,26 +107,17 @@ public class CartController {
 
     }
 
-    @GetMapping ("/checkout")
-    public List<Cart> checkout(@RequestHeader HttpHeaders headers)
+
+
+    @DeleteMapping("/delete/{productId}")
+    public void deleteProduct(@RequestHeader("authorization") String userIdHeader, @PathVariable("productId") String productId)
     {
-        String userIdHeader =  headers.get("Auth").get(0);
-        UserDTO userDTO = (UserDTO) apiProxy.login(userIdHeader);
+        UserProfile userProfile = apiProxy.getCurrentUser(userIdHeader);
+        String userId = userProfile.getId();
         ProductDTO productDTO = new ProductDTO();
-        List<Cart> userIdList = service.findByUser(userDTO.getId());
-
-        return userIdList;
-
+        Cart productToBeDeleted = service.findByUserAndProduct(userId,productId);
+        service.deleteProduct(productToBeDeleted);
     }
-//
-//    @DeleteMapping("/delete/{productId}")
-//    public void deleteProduct(@RequestHeader("authorization") String userIdHeader, @PathVariable("productId") String productId)
-//    {
-//        String userId = (String) apiProxy.login(userIdHeader);
-//        ProductDTO productDTO = new ProductDTO();
-//        Cart productToBeDeleted = service.findByUserAndProduct(userId, productId);
-//        service.deleteProduct(productToBeDeleted);
-//    }
 
 
 

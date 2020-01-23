@@ -29,16 +29,6 @@ public class cartServiceImpl implements CartService {
 
 
 
-
-      //  @Override
-    //   public ProductDTO viewProductById(String id) {
-//
-//        ObjectMapper objectMapper = new ObjectMapper();
-//        ProductDTO productDTO  = new ProductDTO();
-//        OriginalProductDTO product = cartProxy.viewProductById(id);
-//        return productDTO;
-//    }
-
     @Override
     public Cart insert(Cart cart) {
         return cartRepository.insert(cart);
@@ -93,7 +83,7 @@ public class cartServiceImpl implements CartService {
             } catch (Exception ex) {
 
             }
-            }
+        }
 
     }
 

@@ -1,21 +1,31 @@
 package com.baniya.cart.microservice.dto;
 
 import lombok.*;
+import org.springframework.data.annotation.Id;
+
+import java.util.List;
 
 @Getter
 @Setter
 @AllArgsConstructor
-@ToString
 @EqualsAndHashCode
 @Builder
 @NoArgsConstructor
 public class OrderHistoryDTO {
 
+    @Id
     private String orderId;
-    private String merchantId;
     private String userId;
-    private String productName;
-    private String timestamp;
-    private String quantity;
-    private String price;
+    private List<ProductDTO> products;
+
+    @Override
+    public String toString() {
+        return
+                "orderId='" + orderId + '\'' +
+                ", products=" + products ;
+
+
+
+
+    }
 }

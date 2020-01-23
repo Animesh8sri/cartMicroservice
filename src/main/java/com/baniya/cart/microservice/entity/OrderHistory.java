@@ -1,10 +1,13 @@
 package com.baniya.cart.microservice.entity;
 
 
+import com.baniya.cart.microservice.dto.ProductDTO;
 import lombok.*;
+import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.io.Serializable;
+import java.util.List;
 
 @Getter
 @Setter
@@ -16,13 +19,10 @@ import java.io.Serializable;
 public class OrderHistory implements Serializable {
 
 
+    @Id
     private String orderId;
-    private String merchantId;
     private String userId;
-    private String productName;
-    private String timestamp;
-    private String quantity;
-    private String price;
+    private List<ProductDTO> products;
 
     public OrderHistory(){}
 
