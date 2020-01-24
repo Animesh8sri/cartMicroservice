@@ -1,29 +1,24 @@
 package com.baniya.cart.microservice.controller;
 
 import com.baniya.cart.microservice.controller.impl.APIProxy;
-import com.baniya.cart.microservice.dto.EmailDTO;
-import com.baniya.cart.microservice.dto.OrderHistoryDTO;
-import com.baniya.cart.microservice.dto.ProductDTO;
-import com.baniya.cart.microservice.dto.UserProfile;
+import com.baniya.cart.microservice.controller.impl.MerchantProxy;
+import com.baniya.cart.microservice.dto.*;
 import com.baniya.cart.microservice.entity.Cart;
 import com.baniya.cart.microservice.entity.OrderHistory;
 import com.baniya.cart.microservice.service.CartService;
 import com.baniya.cart.microservice.service.OrderHistoryService;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
-import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
+@RequestMapping("/order")
+@RestController
 public class OrderHistoryController {
 
     @Autowired
@@ -35,43 +30,40 @@ public class OrderHistoryController {
     @Autowired
     OrderHistoryService orderHistoryService;
 
+    @Autowired
+    MerchantProxy merchantProxy;
+
 
     @GetMapping("/checkout")
-    public List<ProductDTO> checkout(@RequestHeader HttpHeaders headers)
+    public ResponseEntity<ResponseToCart> checkout(@RequestHeader HttpHeaders headers)
     {
         OrderHistory orderHistory=new OrderHistory();
-        OrderHistory orderCheckout;
+        OrderHistoryDTO orderCheckout = new OrderHistoryDTO();
         String userIdHeader =  headers.get("Auth").get(0);
         UserProfile userProfile = (UserProfile) apiProxy.getCurrentUser(userIdHeader);
+        Cart cartCheckout = service.findCartByCartId(userProfile.getId()).get();
         ProductDTO productDTO = new ProductDTO();
-        List<Cart> userIdList = service.findByUser(userProfile.getId());
+
+        orderCheckout.setCart(cartCheckout);
+        orderCheckout.setUserId(userProfile.getId());
 
 
-        List<String> productIds = userIdList.stream().map(Cart::getProductId).collect(Collectors.toList());
-        List<ProductDTO> products = new ArrayList<>();
-        products = service.viewProductsByProductIds(productIds);
-        Map<String, ProductDTO> map = new HashMap<>();
-        for(ProductDTO product: products){
-            if (null != product.getProductId()) {
-                map.put(product.getProductId(), product);
-            }
-        }
+        BeanUtils.copyProperties(orderCheckout,orderHistory);
+        orderHistoryService.insert(orderHistory);
 
-        service.viewStockAndPrice(userIdList, map);
-        OrderHistoryDTO orderHistoryDTO = new OrderHistoryDTO();
-        orderHistoryDTO.setProducts(products);
-        orderHistoryDTO.setUserId(userProfile.getId());
-        String userEmailId = userProfile.getEmail();
+        CheckoutCartDTO checkoutCartDTO = merchantProxy.updateInventory(cartCheckout);
 
-        BeanUtils.copyProperties(orderHistoryDTO,orderHistory);
-        orderCheckout = orderHistoryService.insert(orderHistory);
 
         EmailDTO emailDTO = new EmailDTO();
-        emailDTO.setOrderHistoryDTO(orderHistoryDTO);
+        emailDTO.setOrderHistoryDTO(orderCheckout);
         emailDTO.setUserEmailId(userProfile.getEmail());
+        ResponseToCart responseToCart = new ResponseToCart();
+        responseToCart.setCartId(userProfile.getId());
 
         orderHistoryService.kafkaConsumer(emailDTO);
-        return products;
+
+        service.deleteCart(cartCheckout);
+        return new ResponseEntity<ResponseToCart>(responseToCart,HttpStatus.CREATED);
     }
 
 

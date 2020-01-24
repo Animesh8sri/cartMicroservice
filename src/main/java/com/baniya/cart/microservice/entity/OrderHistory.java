@@ -11,7 +11,6 @@ import java.util.List;
 
 @Getter
 @Setter
-@ToString
 @AllArgsConstructor
 @EqualsAndHashCode
 @Builder
@@ -22,7 +21,16 @@ public class OrderHistory implements Serializable {
     @Id
     private String orderId;
     private String userId;
-    private List<ProductDTO> products;
+    private Cart cart;
+
+    @Override
+    public String toString() {
+        return "OrderHistory{" +
+                "orderId='" + orderId + '\'' +
+                ", userId='" + userId + '\'' +
+                ", cart=" + cart +
+                '}';
+    }
 
     public OrderHistory(){}
 

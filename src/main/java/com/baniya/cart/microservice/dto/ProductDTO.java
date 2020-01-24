@@ -8,6 +8,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
+
 public class ProductDTO {
 
     private String productId;
@@ -18,5 +19,12 @@ public class ProductDTO {
     private int counter;
     private int stock;
 
-
+    @Override
+    public String toString() {
+        return
+                ", productName='" + productName + '\'' +
+                ", imageUrl='" + imageUrl + '\'' +
+                ", price=" + price +
+                ", counter=" + counter;
+    }
 }

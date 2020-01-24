@@ -2,14 +2,20 @@ package com.baniya.cart.microservice.controller;
 
 
 import com.baniya.cart.microservice.controller.impl.APIProxy;
+import com.baniya.cart.microservice.controller.impl.CartProxy;
 import com.baniya.cart.microservice.dto.*;
 import com.baniya.cart.microservice.entity.Cart;
 import com.baniya.cart.microservice.service.CartService;
+import com.fasterxml.jackson.databind.util.JSONWrappedObject;
+import com.google.gson.Gson;
+import jdk.nashorn.internal.parser.JSONParser;
+import netscape.javascript.JSObject;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.lang.Nullable;
 import org.springframework.web.bind.annotation.*;
 
 import javax.jws.soap.SOAPBinding;
@@ -19,6 +25,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/cart")
 @CrossOrigin(origins = "*", allowedHeaders = "*")
+
 public class CartController {
 
     @Autowired
@@ -27,96 +34,102 @@ public class CartController {
     @Autowired
     APIProxy apiProxy;
 
+    @Autowired
+    CartProxy cartProxy;
+
 
     private static List<ProductDTO> checkout = new ArrayList<>();
 
     @PostMapping("/addToCart")
-    public ResponseEntity<String> addToCart(@RequestBody CartDTO cartDTO, @RequestHeader HttpHeaders headers)
+    public ResponseEntity<ResponseToCart> addToCart(@RequestBody AddToCarDTO addToCarDTO,@RequestHeader HttpHeaders headers)
     {
-        int count;
-        Cart cart = new Cart();
         String userIdHeader =  headers.get("Auth").get(0);
         UserProfile userProfile = apiProxy.getCurrentUser(userIdHeader);
+        ProductDTO productDTO = cartProxy.viewProductById(addToCarDTO.getProductId());
+        ResponseToCart responseToCart= new ResponseToCart();
+        String productIdToBeAdded = addToCarDTO.getProductId();
+        Optional<Cart> existingCartInDatabase = service.findCartByCartId(userProfile.getId());
+        if(existingCartInDatabase.isPresent())
+        {    Cart existingCart = existingCartInDatabase.get();
 
-        cartDTO.setUserId(userProfile.getId());
+            if (null == existingCart.getProductDTO()) {
+                 existingCart.setProductDTO(new ArrayList<>());
+            }
+            Optional<ProductDTO> productExist = existingCart.getProductDTO().stream().filter(product-> product.getProductId().equals(productIdToBeAdded)).findFirst();
+            if(!productExist.isPresent())
+            {
+                productDTO.setCounter(1);
+                existingCart.getProductDTO().add(productDTO);
+                existingCart = service.save(existingCartInDatabase.get());
+            }
+            else
+            {
+                productExist.get().setCounter(productExist.get().getCounter() + 1);
+                existingCart = service.save(existingCartInDatabase.get());
+            }
 
-        BeanUtils.copyProperties(cartDTO,cart);
-        String cartId = cartDTO.getUserId() + "_" + cartDTO.getProductId();
-
-        Cart existingCartInDatabase = service.findCartByCartId(cartId);
-        Cart cartCreated;
-        if(Objects.nonNull(existingCartInDatabase))
-        {
-            count = existingCartInDatabase.getCounter() + 1;
-            existingCartInDatabase.setCounter(count);
-            cartCreated = service.save(existingCartInDatabase);
+            responseToCart.setCartId(existingCart.getCartId());
         }
         else {
-            cart.setCounter(1);
-            cart.setId(cartDTO.getUserId() + "_" + cartDTO.getProductId());
-            cartCreated = service.insert(cart);
+            Cart newCart = new Cart();
+            newCart.setCartId(userProfile.getId());
+            productDTO.setCounter(1);
+            newCart.setProductDTO(Collections.singletonList(productDTO));
+            newCart = service.insert(newCart);
+            responseToCart.setCartId(newCart.getCartId());
         }
 
-        return new ResponseEntity<String>(cartCreated.getUserId(),HttpStatus.CREATED);
-    }
+        return new ResponseEntity<ResponseToCart>(responseToCart,HttpStatus.CREATED);
+}
 
     @GetMapping("/viewCart")
-    public List<ProductDTO> viewProductById(@RequestHeader HttpHeaders headers){
+    public ResponseEntity<Cart> viewCart(@RequestHeader HttpHeaders headers)
+    {
 
         String userIdHeader =  headers.get("Auth").get(0);
-        UserProfile userDTO = (UserProfile) apiProxy.getCurrentUser(userIdHeader);
+        UserProfile userProfile = (UserProfile) apiProxy.getCurrentUser(userIdHeader);
+        String cartId = userProfile.getId();
 
-        ProductDTO productDTO = new ProductDTO();
-        List<Cart> userIdList = service.findByUser(userDTO.getId());
-        List<String> productIds = userIdList.stream().map(Cart::getProductId).collect(Collectors.toList());
-        List<ProductDTO> products = new ArrayList<>();
-        products = service.viewProductsByProductIds(productIds);
-        Map<String, ProductDTO> map = new HashMap<>();
-        for(ProductDTO product: products){
-            if (null != product.getProductId()) {
-                map.put(product.getProductId(), product);
-            }
-        }
+        return new ResponseEntity<Cart>(service.findCartByCartId(cartId).get(), HttpStatus.OK);
 
-        service.viewStockAndPrice(userIdList, map);
 
-        return products;
     }
 
     @PostMapping("/updateCart")
-    public ResponseEntity<String> updateCart(@RequestBody CartDTO cartDTO, @RequestHeader HttpHeaders headers)
+    public ResponseEntity<String> updateCart(@RequestBody UpdateCartDTO updateCartDTO, @RequestHeader HttpHeaders headers)
     {
         Cart cart = new Cart();
         String userIdHeader =  headers.get("Auth").get(0);
-        UserProfile userDTO = (UserProfile) apiProxy.getCurrentUser(userIdHeader);
-        cartDTO.setUserId(userDTO.getId());
-        BeanUtils.copyProperties(cartDTO,cart);
-        String cartId = cartDTO.getUserId() + "_" + cartDTO.getProductId();
+        UserProfile userProfile = apiProxy.getCurrentUser(userIdHeader);
+        String cartId = userProfile.getId();
+        String productIdToBeUpdated;
+        Integer countToBeUpdatted;
 
-        Cart existingCartInDatabase = service.findCartByCartId(cartId);
-        Cart cartUpdated = null;
+        productIdToBeUpdated = updateCartDTO.getProductId();
+        countToBeUpdatted = updateCartDTO.getCounter();
+        cart =service.findCartByCartId(cartId).get();
+        Optional<ProductDTO> productUpdate = cart.getProductDTO().stream().filter(productDTO -> productDTO.getProductId().equals(productIdToBeUpdated)).findFirst();
+        productUpdate.get().setCounter(countToBeUpdatted);
+        Cart cartUpdated =new Cart();
+        cartUpdated = service.save(cart);
 
-        if(Objects.nonNull(existingCartInDatabase))
-        {
-            existingCartInDatabase.setCounter(cartDTO.getCounter());
-            cartUpdated = service.save(existingCartInDatabase);
-        }
-
-        return new ResponseEntity<String>(cartUpdated.getUserId(),HttpStatus.CREATED);
+        return new ResponseEntity<String>(cartUpdated.getCartId(),HttpStatus.CREATED);
 
 
     }
-
 
 
     @DeleteMapping("/delete/{productId}")
     public void deleteProduct(@RequestHeader("authorization") String userIdHeader, @PathVariable("productId") String productId)
     {
+        Cart cart = new Cart();
         UserProfile userProfile = apiProxy.getCurrentUser(userIdHeader);
         String userId = userProfile.getId();
-        ProductDTO productDTO = new ProductDTO();
-        Cart productToBeDeleted = service.findByUserAndProduct(userId,productId);
-        service.deleteProduct(productToBeDeleted);
+        cart = service.findCartByCartId(userId).get();
+        List<ProductDTO> products = cart.getProductDTO();
+        cart.setProductDTO(products.stream().filter(productDTO-> !productDTO.getProductId().equals(productId)).collect(Collectors.toList()));
+
+        service.save(cart);
     }
 
 

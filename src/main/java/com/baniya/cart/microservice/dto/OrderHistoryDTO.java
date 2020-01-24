@@ -1,9 +1,9 @@
 package com.baniya.cart.microservice.dto;
 
+import com.baniya.cart.microservice.entity.Cart;
 import lombok.*;
 import org.springframework.data.annotation.Id;
 
-import java.util.List;
 
 @Getter
 @Setter
@@ -16,16 +16,15 @@ public class OrderHistoryDTO {
     @Id
     private String orderId;
     private String userId;
-    private List<ProductDTO> products;
+    private Cart cart;
 
     @Override
     public String toString() {
-        return
+        return "OrderHistoryDTO{" +
                 "orderId='" + orderId + '\'' +
-                ", products=" + products ;
-
-
-
+                ", userId='" + userId + '\'' +
+                ", cart=" + cart +
+                '}';
 
     }
 }

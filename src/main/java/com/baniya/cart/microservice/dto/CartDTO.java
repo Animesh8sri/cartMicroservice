@@ -3,6 +3,7 @@ package com.baniya.cart.microservice.dto;
 import lombok.*;
 
 import java.io.Serializable;
+import java.util.List;
 
 @Getter
 @Setter
@@ -14,8 +15,6 @@ import java.io.Serializable;
 public class CartDTO implements Serializable {
 
 
-    private String userId;
-    private String productId;
-    private String merchantId;
-    private int counter;
+    private String cartId;
+    private ProductDTO productDTO;
 }
