@@ -23,7 +23,6 @@ public class ProductDTO {
     public String toString() {
         return
                 ", productName='" + productName + '\'' +
-                ", imageUrl='" + imageUrl + '\'' +
                 ", price=" + price +
                 ", counter=" + counter;
     }

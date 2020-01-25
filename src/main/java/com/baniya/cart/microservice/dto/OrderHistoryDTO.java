@@ -4,6 +4,8 @@ import com.baniya.cart.microservice.entity.Cart;
 import lombok.*;
 import org.springframework.data.annotation.Id;
 
+import java.util.Date;
+
 
 @Getter
 @Setter
@@ -17,6 +19,7 @@ public class OrderHistoryDTO {
     private String orderId;
     private String userId;
     private Cart cart;
+    private Date timestamp;
 
     @Override
     public String toString() {

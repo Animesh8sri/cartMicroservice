@@ -23,7 +23,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/cart")
+@RequestMapping
 @CrossOrigin(origins = "*", allowedHeaders = "*")
 
 public class CartController {
@@ -40,8 +40,15 @@ public class CartController {
 
     private static List<ProductDTO> checkout = new ArrayList<>();
 
+
+    @GetMapping("/message")
+    public String print(){
+        System.out.println("message");
+        return "hi";
+    }
+
     @PostMapping("/addToCart")
-    public ResponseEntity<ResponseToCart> addToCart(@RequestBody AddToCarDTO addToCarDTO,@RequestHeader HttpHeaders headers)
+    public ResponseEntity<ResponseToCart> addToCart(@RequestBody AddToCarDTO addToCarDTO,@RequestHeader(required = false) HttpHeaders headers)
     {
         String userIdHeader =  headers.get("Auth").get(0);
         UserProfile userProfile = apiProxy.getCurrentUser(userIdHeader);
@@ -83,20 +90,29 @@ public class CartController {
 }
 
     @GetMapping("/viewCart")
-    public ResponseEntity<Cart> viewCart(@RequestHeader HttpHeaders headers)
+    public ResponseEntity<Cart> viewCart(@RequestHeader(required = false) HttpHeaders headers)
     {
 
         String userIdHeader =  headers.get("Auth").get(0);
         UserProfile userProfile = (UserProfile) apiProxy.getCurrentUser(userIdHeader);
         String cartId = userProfile.getId();
+        Optional<Cart> cart  = service.findCartByCartId(cartId);
+        if(cart.isPresent())
+        {
+            Double total = cart.get().getProductDTO().stream().map(productDTO -> productDTO.getCounter() * productDTO.getPrice()).mapToDouble(Double::doubleValue).sum();
+            cart.get().setTotal(total);
+            service.save(cart.get());
 
-        return new ResponseEntity<Cart>(service.findCartByCartId(cartId).get(), HttpStatus.OK);
+            return new ResponseEntity<Cart>(service.findCartByCartId(cartId).get(), HttpStatus.OK);
+
+        }
+        return null;
 
 
     }
 
     @PostMapping("/updateCart")
-    public ResponseEntity<String> updateCart(@RequestBody UpdateCartDTO updateCartDTO, @RequestHeader HttpHeaders headers)
+    public ResponseEntity<ResponseToCart> updateCart(@RequestBody UpdateCartDTO updateCartDTO, @RequestHeader HttpHeaders headers)
     {
         Cart cart = new Cart();
         String userIdHeader =  headers.get("Auth").get(0);
@@ -111,9 +127,15 @@ public class CartController {
         Optional<ProductDTO> productUpdate = cart.getProductDTO().stream().filter(productDTO -> productDTO.getProductId().equals(productIdToBeUpdated)).findFirst();
         productUpdate.get().setCounter(countToBeUpdatted);
         Cart cartUpdated =new Cart();
+        Double total = cart.getProductDTO().stream().map(productDTO -> productDTO.getCounter() * productDTO.getPrice()).mapToDouble(Double::doubleValue).sum();
+        cart.setTotal(total);
         cartUpdated = service.save(cart);
 
-        return new ResponseEntity<String>(cartUpdated.getCartId(),HttpStatus.CREATED);
+        ResponseToCart responseToCart = new ResponseToCart();
+        responseToCart.setCartId(cart.getCartId());
+        responseToCart.setTotal(cart.getTotal());
+
+        return new ResponseEntity<ResponseToCart>(responseToCart,HttpStatus.CREATED);
 
 
     }

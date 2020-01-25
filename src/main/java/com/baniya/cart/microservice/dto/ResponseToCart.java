@@ -7,5 +7,12 @@ import lombok.Setter;
 @Setter
 public class ResponseToCart {
 
-    String cartId;
+    Boolean isSuccess;
+    String  errorMessage;
+    String  cartId;
+    Double total;
+
+    public ResponseToCart(){
+        isSuccess = true;
+    }
 }

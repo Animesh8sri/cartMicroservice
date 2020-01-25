@@ -7,6 +7,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.io.Serializable;
+import java.util.Date;
 import java.util.List;
 
 @Getter
@@ -22,6 +23,7 @@ public class OrderHistory implements Serializable {
     private String orderId;
     private String userId;
     private Cart cart;
+    private Date timestamp;
 
     @Override
     public String toString() {

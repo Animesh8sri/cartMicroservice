@@ -20,6 +20,7 @@ public class Cart implements Serializable {
     @Id
     private String cartId;
     private List<ProductDTO> productDTO;
+    private double total;
 
     public Cart(){}
 
