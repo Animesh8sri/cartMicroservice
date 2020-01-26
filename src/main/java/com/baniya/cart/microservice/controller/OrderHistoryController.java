@@ -22,6 +22,8 @@ import java.util.stream.Collectors;
 
 @RequestMapping("/order")
 @RestController
+@CrossOrigin(origins = "*", allowedHeaders = "*")
+
 public class OrderHistoryController {
 
     @Autowired
@@ -40,49 +42,65 @@ public class OrderHistoryController {
     @GetMapping("/checkout")
     public ResponseEntity<ResponseToCart> checkout(@RequestHeader HttpHeaders headers)
     {
-        ResponseToCart responseToCart = new ResponseToCart();
-        OrderHistory orderHistory=new OrderHistory();
-        OrderHistoryDTO orderCheckout = new OrderHistoryDTO();
-        String userIdHeader =  headers.get("Auth").get(0);
-        UserProfile userProfile = (UserProfile) apiProxy.getCurrentUser(userIdHeader);
-        String guestId = headers.get("guest").get(0);
-        Optional<Cart> guestCart = cartService.findCartByCartId(guestId);
-        if(guestCart.isPresent())
+        try {
+            Object data = headers.get("guest");
+            if(headers.get("isWeb").get(0).equals("true"))
+            {
+                data=null;
+            }
+            boolean isGuest = false;
+            ResponseToCart responseToCart = new ResponseToCart();
+            OrderHistory orderHistory = new OrderHistory();
+            OrderHistoryDTO orderCheckout = new OrderHistoryDTO();
+            String userIdHeader = headers.get("Auth").get(0);
+            UserProfile userProfile = (UserProfile) apiProxy.getCurrentUser(userIdHeader);
+            Optional<Cart> guestCart = Optional.of(new Cart());
+            if (data != null) {
+                String guestId = headers.get("guest").get(0);
+                guestCart = cartService.findCartByCartId(guestId);
+                isGuest = true;
+            }
+            if (isGuest && guestCart.isPresent()) {
+                guestCart.get().setCartId(userProfile.getId());
+                cartService.save(guestCart);
+                cartService.deleteById(headers.get("guest").get(0));
+            }
+            Cart cartCheckout = cartService.findCartByCartId(userProfile.getId()).get();
+            ProductDTO productDTO = new ProductDTO();
+            orderCheckout.setCart(cartCheckout);
+            orderCheckout.setUserId(userProfile.getId());
+            Date date = new Date();
+            orderCheckout.setTimestamp(new Timestamp(date.getTime()));
+            BeanUtils.copyProperties(orderCheckout, orderHistory);
+
+
+            CheckoutCartDTO checkoutCartDTO = merchantProxy.updateInventory(cartCheckout);
+            if (checkoutCartDTO.isSuccess()) {
+                responseToCart.setIsSuccess(true);
+                EmailDTO emailDTO = new EmailDTO();
+                emailDTO.setOrderHistoryDTO(orderCheckout);
+                emailDTO.setUserEmailId(userProfile.getEmail());
+                responseToCart.setCartId(userProfile.getId());
+                orderHistoryService.kafkaConsumer(emailDTO);
+                orderHistoryService.insert(orderHistory);
+                cartService.deleteCart(cartCheckout);
+            } else {
+                responseToCart.setIsSuccess(false);
+                responseToCart.setErrorMessage("Some items are out of stock!");
+                List<String> productOutOfStock = checkoutCartDTO.getProductId();
+                cartCheckout.setProductDTO(cartCheckout.getProductDTO().stream().filter(productDTO1 -> !productOutOfStock.contains(productDTO1.getProductId())).collect(Collectors.toList()));
+                cartService.save(Optional.of(cartCheckout));
+            }
+
+            return new ResponseEntity(responseToCart, HttpStatus.CREATED);
+        }
+        catch (Exception e)
         {
-            guestCart.get().setCartId(userProfile.getId());
-            cartService.save(guestCart);
-            cartService.deleteById(headers.get("guest").get(0));
-        }
-        Cart cartCheckout = cartService.findCartByCartId(userProfile.getId()).get();
-        ProductDTO productDTO = new ProductDTO();
-        orderCheckout.setCart(cartCheckout);
-        orderCheckout.setUserId(userProfile.getId());
-        Date date = new Date();
-        orderCheckout.setTimestamp(new Timestamp(date.getTime()));
-        BeanUtils.copyProperties(orderCheckout,orderHistory);
-
-
-        CheckoutCartDTO checkoutCartDTO = merchantProxy.updateInventory(cartCheckout);
-        if(checkoutCartDTO.isSuccess() ==true)
-        {   responseToCart.setIsSuccess(true);
-            EmailDTO emailDTO = new EmailDTO();
-            emailDTO.setOrderHistoryDTO(orderCheckout);
-            emailDTO.setUserEmailId(userProfile.getEmail());
-            responseToCart.setCartId(userProfile.getId());
-            orderHistoryService.kafkaConsumer(emailDTO);
-            orderHistoryService.insert(orderHistory);
-            cartService.deleteCart(cartCheckout);
-        }
-        else
-        {
-            responseToCart.setIsSuccess(false);
-            responseToCart.setErrorMessage("Some items are out of stock!");
-            List<String> productOutOfStock = checkoutCartDTO.getProductId();
-            cartCheckout.setProductDTO(cartCheckout.getProductDTO().stream().filter(productDTO1 -> !productOutOfStock.contains(productDTO1.getProductId())).collect(Collectors.toList()));
-            cartService.save(Optional.of(cartCheckout));
+            System.out.println(e);
+            e.printStackTrace();
         }
 
-        return new ResponseEntity<ResponseToCart>(responseToCart,HttpStatus.CREATED);
+        return null;
     }
 
     @GetMapping("/productCount/{productId}")

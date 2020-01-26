@@ -44,11 +44,15 @@ public class CartController {
     {
         String cartId=null;
         Object data = headers.get("guest");
-
+        //String isweb = headers.get("isWeb");
+        if(headers.get("isWeb").get(0).equals("true"))
+        {
+            data=null;
+        }
         if(headers.get("Auth") == null){
             cartId = headers.get("guest").get(0);
         }
-        else if(!(headers.get("Auth") == null) && !(headers.get("guest") ==null))
+        else if(!(headers.get("Auth") == null) && !(data ==null))
         {
             Optional<Cart> oldGuestCart = cartService.findCartByCartId(headers.get("guest").get(0));
             if(oldGuestCart.isPresent())
@@ -130,9 +134,14 @@ public class CartController {
     public ResponseEntity<Cart> viewCart(@RequestHeader HttpHeaders headers) {
         String cartId = null;
         try {
+            Object data = headers.get("guest");
+            if(headers.get("isWeb").get(0).equals("true"))
+            {
+                data=null;
+            }
             if (headers.get("Auth") == null) {
                 cartId = headers.get("guest").get(0);
-            } else if (!(headers.get("Auth") == null) && !(headers.get("guest") == null)) {
+            } else if (!(headers.get("Auth") == null) && !(data == null)) {
                 Optional<Cart> oldGuestCart = cartService.findCartByCartId(headers.get("guest").get(0));
                 if (oldGuestCart.isPresent()) {
                     String userIdHeader = headers.get("Auth").get(0);
@@ -153,7 +162,7 @@ public class CartController {
                 cart.get().setTotal(total);
                 cartService.save(cart);
 
-                return new ResponseEntity<Cart>(cartService.findCartByCartId(cartId).get(), HttpStatus.OK);
+                return new ResponseEntity(cartService.findCartByCartId(cartId).get(), HttpStatus.OK);
 
             }
         } catch(Exception e)
@@ -172,15 +181,18 @@ public class CartController {
     {
         Cart cart = new Cart();
         String cartId= null;
+        Object data = headers.get("guest");
+        if(headers.get("isWeb").get(0).equals("true"))
+        {
+            data=null;
+        }
         if(headers.get("Auth")==null)
         {
             cartId = headers.get("guest").get(0);
         }
-        else if(!(headers.get("Auth") == null) && !(headers.get("guest") ==null)) {
+        else if(!(headers.get("Auth") == null) && !(data ==null)) {
             Optional<Cart> oldGuestCart = cartService.findCartByCartId(headers.get("guest").get(0));
-            if (oldGuestCart.isPresent()) {
-                oldGuestCart.get().setCartId(headers.get("Auth").get(0));
-            }
+            oldGuestCart.ifPresent(cart1 -> cart1.setCartId(headers.get("Auth").get(0)));
         }
         else
         {
