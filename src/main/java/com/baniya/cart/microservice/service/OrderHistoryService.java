@@ -16,5 +16,7 @@ public interface OrderHistoryService {
     public void merchantCheckout(Cart cart);
     public List<ProductDTO> merchantViewCustomer(String merchantId);
     List<OrderHistory> findOrderHistoryByUserId(String customerId);
+    public long sumCounterByProductId(String productId);
+    List<ProductDTO> findOrderHistoryByOrderId(String orderId);
 
 }

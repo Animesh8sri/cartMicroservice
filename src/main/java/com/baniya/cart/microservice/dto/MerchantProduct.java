@@ -5,9 +5,10 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class AddToCarDTO {
+public class MerchantProduct {
 
-    private String productId;
     private String merchantId;
-    private String cartId;
+    private String productId;
+    private int stock;
+    private double price;
 }

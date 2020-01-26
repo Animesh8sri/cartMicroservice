@@ -1,24 +1,16 @@
 package com.baniya.cart.microservice.controller;
 
-
 import com.baniya.cart.microservice.controller.impl.APIProxy;
 import com.baniya.cart.microservice.controller.impl.CartProxy;
+import com.baniya.cart.microservice.controller.impl.MerchantProxy;
 import com.baniya.cart.microservice.dto.*;
 import com.baniya.cart.microservice.entity.Cart;
 import com.baniya.cart.microservice.service.CartService;
-import com.fasterxml.jackson.databind.util.JSONWrappedObject;
-import com.google.gson.Gson;
-import jdk.nashorn.internal.parser.JSONParser;
-import netscape.javascript.JSObject;
-import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.lang.Nullable;
 import org.springframework.web.bind.annotation.*;
-
-import javax.jws.soap.SOAPBinding;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -29,7 +21,7 @@ import java.util.stream.Collectors;
 public class CartController {
 
     @Autowired
-    CartService service;
+    CartService cartService;
 
     @Autowired
     APIProxy apiProxy;
@@ -37,9 +29,8 @@ public class CartController {
     @Autowired
     CartProxy cartProxy;
 
-
-    private static List<ProductDTO> checkout = new ArrayList<>();
-
+    @Autowired
+    MerchantProxy merchantProxy;
 
     @GetMapping("/message")
     public String print(){
@@ -50,43 +41,67 @@ public class CartController {
     @PostMapping("/addToCart")
     public ResponseEntity<ResponseToCart> addToCart(@RequestBody AddToCarDTO addToCarDTO,@RequestHeader(required = false) HttpHeaders headers)
     {
-        String userIdHeader =  headers.get("Auth").get(0);
-        UserProfile userProfile = apiProxy.getCurrentUser(userIdHeader);
-        ProductDTO productDTO = cartProxy.viewProductById(addToCarDTO.getProductId());
-        ResponseToCart responseToCart= new ResponseToCart();
-        String productIdToBeAdded = addToCarDTO.getProductId();
-        Optional<Cart> existingCartInDatabase = service.findCartByCartId(userProfile.getId());
-        if(existingCartInDatabase.isPresent())
-        {    Cart existingCart = existingCartInDatabase.get();
+        if(headers==null)
+        {
 
-            if (null == existingCart.getProductDTO()) {
-                 existingCart.setProductDTO(new ArrayList<>());
-            }
-            Optional<ProductDTO> productExist = existingCart.getProductDTO().stream().filter(product-> product.getProductId().equals(productIdToBeAdded)).findFirst();
-            if(!productExist.isPresent())
-            {
-                productDTO.setCounter(1);
-                existingCart.getProductDTO().add(productDTO);
-                existingCart = service.save(existingCartInDatabase.get());
-            }
-            else
-            {
-                productExist.get().setCounter(productExist.get().getCounter() + 1);
-                existingCart = service.save(existingCartInDatabase.get());
-            }
-
-            responseToCart.setCartId(existingCart.getCartId());
         }
-        else {
-            Cart newCart = new Cart();
-            newCart.setCartId(userProfile.getId());
-            productDTO.setCounter(1);
-            newCart.setProductDTO(Collections.singletonList(productDTO));
-            newCart = service.insert(newCart);
-            responseToCart.setCartId(newCart.getCartId());
+        else
+        {
+
         }
 
-        return new ResponseEntity<ResponseToCart>(responseToCart,HttpStatus.CREATED);
+
+            String userIdHeader = headers.get("Auth").get(0);
+            UserProfile userProfile = apiProxy.getCurrentUser(userIdHeader);
+            ProductDTO newProduct = cartProxy.viewProductById(addToCarDTO.getProductId());
+            MerchantProduct productDTO = merchantProxy.viewProductByProductIdAndMerchantId(addToCarDTO.getProductId(), addToCarDTO.getMerchantId());
+            double price = productDTO.getPrice();
+            ResponseToCart responseToCart = new ResponseToCart();
+            String productIdToBeAdded = addToCarDTO.getProductId();
+            Optional<Cart> existingCartInDatabase = cartService.findCartByCartId(userProfile.getId());
+
+            if (existingCartInDatabase.isPresent()) {
+                Cart existingCart = existingCartInDatabase.get();
+
+                if (null == existingCart.getProductDTO()) {
+                    existingCart.setProductDTO(new ArrayList<>());
+                }
+                Optional<ProductDTO> productExist = existingCart.getProductDTO().stream().filter(product -> product.getProductId().equals(productIdToBeAdded)).findFirst();
+                String merchantId = addToCarDTO.getMerchantId();
+
+                if (productExist.isPresent() && (productExist.get().getMerchantId() != merchantId)) {
+                    newProduct.setMerchantId(productDTO.getMerchantId());
+                    newProduct.setCounter(1);
+                    newProduct.setPrice(productDTO.getPrice());
+                    existingCart.getProductDTO().add(newProduct);
+                    existingCart = cartService.save(existingCartInDatabase.get());
+                } else if (productExist.isPresent() && (productExist.get().getMerchantId() == merchantId)) {
+                    newProduct.setProductId(productDTO.getProductId());
+                    newProduct.setMerchantId(productDTO.getMerchantId());
+                    newProduct.setPrice(productDTO.getPrice());
+                    productExist.get().setCounter(productExist.get().getCounter() + 1);
+                    existingCart = cartService.save(existingCartInDatabase.get());
+                } else {
+                    newProduct.setProductId(productIdToBeAdded);
+                    newProduct.setMerchantId(productDTO.getMerchantId());
+                    newProduct.setCounter(1);
+                    existingCart.getProductDTO().add(newProduct);
+                    existingCart = cartService.save(existingCartInDatabase.get());
+                }
+
+                responseToCart.setCartId(existingCart.getCartId());
+            }
+            else {
+                Cart newCart = new Cart();
+                newCart.setCartId(userProfile.getId());
+                newProduct.setCounter(1);
+                newProduct.setMerchantId(productDTO.getMerchantId());
+                newCart.setProductDTO(Collections.singletonList(newProduct));
+                newCart = cartService.insert(newCart);
+                responseToCart.setCartId(newCart.getCartId());
+            }
+            return new ResponseEntity<ResponseToCart>(responseToCart,HttpStatus.CREATED);
+
 }
 
     @GetMapping("/viewCart")
@@ -96,14 +111,14 @@ public class CartController {
         String userIdHeader =  headers.get("Auth").get(0);
         UserProfile userProfile = (UserProfile) apiProxy.getCurrentUser(userIdHeader);
         String cartId = userProfile.getId();
-        Optional<Cart> cart  = service.findCartByCartId(cartId);
+        Optional<Cart> cart  = cartService.findCartByCartId(cartId);
         if(cart.isPresent())
         {
             Double total = cart.get().getProductDTO().stream().map(productDTO -> productDTO.getCounter() * productDTO.getPrice()).mapToDouble(Double::doubleValue).sum();
             cart.get().setTotal(total);
-            service.save(cart.get());
+            cartService.save(cart.get());
 
-            return new ResponseEntity<Cart>(service.findCartByCartId(cartId).get(), HttpStatus.OK);
+            return new ResponseEntity<Cart>(cartService.findCartByCartId(cartId).get(), HttpStatus.OK);
 
         }
         return null;
@@ -123,13 +138,13 @@ public class CartController {
 
         productIdToBeUpdated = updateCartDTO.getProductId();
         countToBeUpdatted = updateCartDTO.getCounter();
-        cart =service.findCartByCartId(cartId).get();
+        cart = cartService.findCartByCartId(cartId).get();
         Optional<ProductDTO> productUpdate = cart.getProductDTO().stream().filter(productDTO -> productDTO.getProductId().equals(productIdToBeUpdated)).findFirst();
         productUpdate.get().setCounter(countToBeUpdatted);
         Cart cartUpdated =new Cart();
         Double total = cart.getProductDTO().stream().map(productDTO -> productDTO.getCounter() * productDTO.getPrice()).mapToDouble(Double::doubleValue).sum();
         cart.setTotal(total);
-        cartUpdated = service.save(cart);
+        cartUpdated = cartService.save(cart);
 
         ResponseToCart responseToCart = new ResponseToCart();
         responseToCart.setCartId(cart.getCartId());
@@ -147,11 +162,11 @@ public class CartController {
         Cart cart = new Cart();
         UserProfile userProfile = apiProxy.getCurrentUser(userIdHeader);
         String userId = userProfile.getId();
-        cart = service.findCartByCartId(userId).get();
+        cart = cartService.findCartByCartId(userId).get();
         List<ProductDTO> products = cart.getProductDTO();
         cart.setProductDTO(products.stream().filter(productDTO-> !productDTO.getProductId().equals(productId)).collect(Collectors.toList()));
 
-        service.save(cart);
+        cartService.save(cart);
     }
 
 

@@ -76,6 +76,12 @@ public class OrderHistoryController {
         return new ResponseEntity<ResponseToCart>(responseToCart,HttpStatus.CREATED);
     }
 
+    @GetMapping("/productCount/{productId}")
+    public long viewProductCount(@PathVariable("productId") String productId)
+    {
+        return orderHistoryService.sumCounterByProductId(productId);
+    }
+
     @GetMapping("/customer/{merchantId}")
     public List<ProductDTO> merchantViewCustomer(@PathVariable("merchantId") String merchantId)
     {
@@ -93,5 +99,10 @@ public class OrderHistoryController {
         return orderHistoryService.findOrderHistoryByUserId(customerId);
     }
 
+    @GetMapping("/orderId/{orderId}")
+    public List<ProductDTO> viewCustomerOrderDetails(@PathVariable("orderId") String orderId)
+    {
+        return orderHistoryService.findOrderHistoryByOrderId(orderId);
+    }
 
 }

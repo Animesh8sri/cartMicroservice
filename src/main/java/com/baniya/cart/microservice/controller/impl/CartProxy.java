@@ -16,8 +16,8 @@ import java.util.Map;
 
 public interface CartProxy {
 
-    @GetMapping("/product/viewProductById/{id}")
-    ProductDTO viewProductById(@PathVariable("id") String id);
+    @GetMapping("/product/viewProductById/{productid}")
+    ProductDTO viewProductById(@PathVariable("productid") String productid);
 
     @PostMapping("/product/productCart")
     List<ProductDTO> getCartProduct(@RequestBody List<String> ids);

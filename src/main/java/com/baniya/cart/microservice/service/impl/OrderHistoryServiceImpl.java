@@ -88,6 +88,19 @@ public class OrderHistoryServiceImpl implements OrderHistoryService
         return orderFilter;
     }
 
+    @Override
+    public long sumCounterByProductId(String productId) {
+
+        return orderHistoryRepository.countCartProductDTOCounterByCartProductDTOProductId(productId);
+    }
+
+    @Override
+    public List<ProductDTO> findOrderHistoryByOrderId(String orderId) {
+        OrderHistory orders = orderHistoryRepository.findOrderHistoryByOrderId(orderId);
+        List<ProductDTO> products = orders.getCart().getProductDTO();
+        return products;
+    }
+
 
     @KafkaListener(topics = "Email",groupId = "group_id")
     public void consume(String emailBody) throws IOException {
