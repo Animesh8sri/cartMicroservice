@@ -9,5 +9,4 @@ public class AddToCarDTO {
 
     private String productId;
     private String merchantId;
-    private String cartId;
 }

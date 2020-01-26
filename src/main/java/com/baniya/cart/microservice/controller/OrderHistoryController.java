@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.sql.Timestamp;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @RequestMapping("/order")
@@ -24,7 +25,7 @@ import java.util.stream.Collectors;
 public class OrderHistoryController {
 
     @Autowired
-    CartService service;
+    CartService cartService;
 
     @Autowired
     APIProxy apiProxy;
@@ -44,7 +45,15 @@ public class OrderHistoryController {
         OrderHistoryDTO orderCheckout = new OrderHistoryDTO();
         String userIdHeader =  headers.get("Auth").get(0);
         UserProfile userProfile = (UserProfile) apiProxy.getCurrentUser(userIdHeader);
-        Cart cartCheckout = service.findCartByCartId(userProfile.getId()).get();
+        String guestId = headers.get("guest").get(0);
+        Optional<Cart> guestCart = cartService.findCartByCartId(guestId);
+        if(guestCart.isPresent())
+        {
+            guestCart.get().setCartId(userProfile.getId());
+            cartService.save(guestCart);
+            cartService.deleteById(headers.get("guest").get(0));
+        }
+        Cart cartCheckout = cartService.findCartByCartId(userProfile.getId()).get();
         ProductDTO productDTO = new ProductDTO();
         orderCheckout.setCart(cartCheckout);
         orderCheckout.setUserId(userProfile.getId());
@@ -62,7 +71,7 @@ public class OrderHistoryController {
             responseToCart.setCartId(userProfile.getId());
             orderHistoryService.kafkaConsumer(emailDTO);
             orderHistoryService.insert(orderHistory);
-            service.deleteCart(cartCheckout);
+            cartService.deleteCart(cartCheckout);
         }
         else
         {
@@ -70,7 +79,7 @@ public class OrderHistoryController {
             responseToCart.setErrorMessage("Some items are out of stock!");
             List<String> productOutOfStock = checkoutCartDTO.getProductId();
             cartCheckout.setProductDTO(cartCheckout.getProductDTO().stream().filter(productDTO1 -> !productOutOfStock.contains(productDTO1.getProductId())).collect(Collectors.toList()));
-            service.save(cartCheckout);
+            cartService.save(Optional.of(cartCheckout));
         }
 
         return new ResponseEntity<ResponseToCart>(responseToCart,HttpStatus.CREATED);

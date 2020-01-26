@@ -1,7 +1,5 @@
 package com.baniya.cart.microservice.service;
 
-import com.baniya.cart.microservice.dto.ProductDTO;
-import com.baniya.cart.microservice.dto.ResponseToCart;
 import com.baniya.cart.microservice.entity.Cart;
 
 import java.util.Optional;
@@ -20,7 +18,8 @@ public interface CartService {
 
     Optional<Cart> findCartByCartId(String cartId);
 
-    Cart save(Cart existingCartInDatabase);
+    Cart save(Optional<Cart> existingCartInDatabase);
+    public void deleteById(String cartId);
 
 
     void deleteCart(Cart cartCheckout);
